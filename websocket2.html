@@ -1,0 +1,88 @@
+<!DOCTYPE HTML>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>websocket测试</title>
+</head>
+
+<body>
+    当前游客id:<input id="account"disabled/>
+    <input id="text"type="text"/>
+    <button onclick="send()">发送消息</button>
+    <button onclick="closeWebSocket()">关闭WebSocket连接</button>
+    <div id="message"style="width:100%"></div>
+</body>
+
+<script type="text/javascript">
+  let websocket=new WebSocket("ws://172.16.3.147:8360/ws");
+  const id=Math.round(Math.random()*1000000)
+  document.getElementById('account').value=id
+
+  //连接发生错误的回调方法
+  websocket.onerror=function(){
+      setMessageInnerHTML(`<div style="text-align:center">系统消息：WebSocket连接成功</div>`)
+  };
+
+  //连接成功建立的回调方法
+  websocket.onopen=function(){
+      setMessageInnerHTML(`<div style="text-align:center">系统消息：WebSocket接收到了消息</div>`)
+  }
+
+  //接收到消息的回调方法
+  websocket.onmessage=function(event){
+      const data=JSON.parse(event.data)
+      if(data.event==='message'){
+          if(data.data.id===id){
+              setMessageInnerHTML(`<div style="text-align:right">${data.data.time}游客${data.data.id}</div>
+                                   <div style="text-align:right;font-size:25px">${data.data.message}</div>`)
+          }else{
+              setMessageInnerHTML(`<div style="text-align:left">游客${data.event}</div>
+                                   <div style="text-align:left;font-size:25px">${data.data.message}</div>`)
+          }
+      }else if(data.event==='online'){
+          setMessageInnerHTML(`<div style="text-align:center">系统消息：用户上线</div>`)
+      }else if(data.event==='offline'){
+          setMessageInnerHTML(`<div style="text-align:center">系统消息：用户下线</div>`)
+      }else if(data.event==='open'){
+          //websocket建立成功后发送上线消息
+          const body={event:'online',data:{id:id}}
+          websocket.send(JSON.stringify(body));
+      }
+  }
+
+  //连接关闭的回调方法
+  websocket.onclose=function(){
+      setMessageInnerHTML(`<div style="text-align:center">系统消息：Websocket连接关闭</div>`)
+  }
+
+  //监听窗口关闭时间，当窗口关闭时，主动去关闭websocket连接，防止连接还没断开
+  window.onbeforeunload=function(){
+      closeWebSocket();
+  }
+
+  //将消息显示在网页上
+  function setMessageInnerHTML(innerHTML){
+      document.getElementById('message').innerHTML+=innerHTML;
+  }
+
+  //关闭WebSocket连接
+  function closeWebSocket(){
+      //websocket关闭之前发送下线信息
+      const body={event:'offline',data:{id:id}}
+      websocket.send(JSON.stringify(body));
+      websocket.close();
+  }
+
+  //发送信息
+  function send(){
+      if(document.getElementById('text').value===''){
+          alert('发送消息不能为空！')
+          return
+      }
+      const data={id:id,message:document.getElementById('text')}
+      document.getElementById('text').value='';
+      const body={event:'message',data:data}
+      websocket.send(JSON.stringify(body));
+  }
+</script>
+</html>
